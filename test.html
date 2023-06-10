@@ -1,0 +1,164 @@
+<html>
+  <head>
+    <title>My first PHP website</title>
+  </head>
+  <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+  <script>
+    var CMCD_DATA_GENERATED = dashjs.MetricsReporting.events.CMCD_DATA_GENERATED
+
+    /* possible modes of attach cmcd data */
+    var CMCD_MODE_QUERY = "query" /* as query parameters */
+    var CMCD_MODE_HEADER = "header" /* as HTTP headers */
+    var player
+
+    function init() {
+      var video,
+        url = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd",
+        version
+
+      player = dashjs.MediaPlayer().create()
+      video = document.getElementById("video_")
+      player.initialize()
+      version = player.getVersion()
+
+      player.on(CMCD_DATA_GENERATED, handleCmcdDataGeneratedEvent)
+
+      player.updateSettings({
+        streaming: {
+          cmcd: {
+            enabled: true /* enable reporting of cmcd parameters */,
+            sid: "b248658d-1d1a-4039-91d0-8c08ba597da5" /* session id send with each request */,
+            cid: "21cf726cfe3d937b5f974f72bb5bd06a" /* content id send with each request */,
+            mode: CMCD_MODE_QUERY,
+            enabledKeys: [
+              "br",
+              "d",
+              "ot",
+              "tb",
+              "bl",
+              "dl",
+              "mtp",
+              "nor",
+              "nrr",
+              "su",
+              "bs",
+              "rtp",
+              "cid",
+              "pr",
+              "sf",
+              "sid",
+              "st",
+              "v"
+            ]
+          }
+        }
+      })
+      player.setAutoPlay(false)
+      player.attachView(video)
+      player.attachSource(url)
+
+      // HTTPRequestEvents.LOADING_PROGRESS
+      /*      player.on("loadingProgress", function (e) {
+        debugger
+        console.log("loadingProgress")
+      }) 
+*/
+      // HTTPRequestEvents.LOADING_STALLED
+      player.on("loadingStalled", function (e) {
+        debugger
+        console.log("loadingStalled")
+      })
+      // HTTPRequestEvents.LOADING_COMPLETE
+      player.on("loadingComplete", function (e) {
+        debugger
+        console.log("loadingComplete")
+      })
+      // From object HTTPRequest console.log _responseHeaders
+      player.on("httpRequest", function (e) {
+        debugger
+        console.log("httpRequest")
+      })
+      // XMLHttpRequest.getAllResponseHeaders()
+      player.on("xhrRequest", function (e) {
+        debugger
+        console.log("xhrRequest")
+      })
+    }
+
+    function handleCmcdDataGeneratedEvent(event) {
+      log("type: " + event.mediaType)
+      log("file: " + event.url.split("/").pop())
+      var mode = player.getSettings().streaming.cmcd.mode
+      var data =
+        mode === CMCD_MODE_HEADER
+          ? getKeysForHeaderMode(event)
+          : getKeysForQueryMode(event)
+      var keys = Object.keys(data)
+      keys = keys.sort()
+      for (var key of keys) {
+        log(key.padEnd(4) + ": " + event.cmcdData[key])
+      }
+      log("")
+    }
+
+    function getKeysForQueryMode(event) {
+      var cmcdData = {}
+      var cmcdString = event.cmcdString
+
+      extractKeyValuePairs(cmcdString, cmcdData)
+
+      return cmcdData
+    }
+
+    function getKeysForHeaderMode(event) {
+      var cmcdData = {}
+      var keys = Object.keys(event.headers)
+
+      for (var key of keys) {
+        extractKeyValuePairs(event.headers[key], cmcdData)
+      }
+
+      return cmcdData
+    }
+
+    function extractKeyValuePairs(cmcdString, cmcdData) {
+      if (cmcdString === "") {
+        return
+      }
+      var keyValuePairs = cmcdString.split(",")
+
+      keyValuePairs.forEach(function (keyValuePair) {
+        var data = keyValuePair.split("=")
+        var key = data[0]
+        var value = data[1]
+
+        cmcdData[key] = value
+      })
+    }
+
+    function log(msg) {
+      msg =
+        msg.length > 200
+          ? msg.substring(0, 200) + "..."
+          : msg /* to avoid repeated wrapping with large objects */
+      var tracePanel = document.getElementById("trace")
+      tracePanel.innerHTML += msg + "\n"
+      tracePanel.scrollTop = tracePanel.scrollHeight
+      console.log(msg)
+    }
+  </script>
+  <script>
+    // when dom is loaded attach the player
+    document.addEventListener("DOMContentLoaded", function (event) {
+      init()
+    })
+  </script>
+  <body>
+    <div class="dash-video-player">
+      <div class="videoContainer" id="videoContainer">
+        <video preload="auto" controls="true" id="video_"></video>
+      </div>
+    </div>
+  </body>
+</html>
+
